@@ -1,35 +1,37 @@
 <template>
   <q-page class="q-pa-md">
     <div class="row items-center justify-between q-mb-md">
-      <div class="text-h4">Inventario Inteligente</div>
-      <q-btn color="primary" icon="add" label="Nuevo Proveedor" @click="showNewProviderDialog = true" />
+      <div class="text-h4 text-neon">Inventario</div>
+      <q-btn round icon="add" class="bg-primary text-white" @click="showNewProviderDialog = true" />
     </div>
 
     <div class="row q-col-gutter-md">
       <div class="col-12" v-if="inventoryStore.loading">
-        <q-spinner size="3em" />
+        <q-spinner-dots size="40px" color="cyan-13" />
       </div>
       <div class="col-12" v-else-if="inventoryStore.providers.length === 0">
-        <q-banner class="bg-grey-3 rounded-borders">
+        <q-banner class="glass-panel text-white rounded-borders text-center">
           No hay proveedores registrados.
         </q-banner>
       </div>
       
       <div class="col-12 col-md-6" v-for="provider in inventoryStore.providers" :key="provider.id">
-        <q-card>
+        <q-card class="glass-card full-height">
           <q-card-section>
-            <div class="text-h6">{{ provider.nombre }}</div>
-            <div class="text-subtitle2 text-grey">{{ provider.telefono }}</div>
+            <div class="text-h6 text-white">{{ provider.nombre }}</div>
+            <div class="text-subtitle2 text-grey-5">{{ provider.telefono }}</div>
           </q-card-section>
           
-          <q-separator />
+          <q-separator class="bg-white-1" />
           
           <q-card-section>
-            <div class="text-subtitle2 q-mb-sm">Productos Habituales:</div>
-            <q-chip v-for="(price, product) in provider.precios_habituales" :key="product" outline color="primary">
-              {{ product }}: {{ price }}€
-            </q-chip>
-            <div v-if="!provider.precios_habituales || Object.keys(provider.precios_habituales).length === 0" class="text-grey text-caption">
+            <div class="text-subtitle2 q-mb-sm text-neon-secondary">Productos Habituales:</div>
+            <div class="row q-gutter-sm">
+              <q-chip v-for="(price, product) in provider.precios_habituales" :key="product" outline color="cyan-13" text-color="white">
+                {{ product }}: {{ price }}€
+              </q-chip>
+            </div>
+            <div v-if="!provider.precios_habituales || Object.keys(provider.precios_habituales).length === 0" class="text-grey-6 text-caption">
               Sin productos registrados
             </div>
           </q-card-section>

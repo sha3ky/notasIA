@@ -4,10 +4,11 @@ const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 export const groqService = {
     async getApiKey() {
-        return await settingsDB.getItem('groqApiKey');
+        // Prioridad: Variable de entorno (Netlify/Local) > Configuración guardada
+        return import.meta.env.VITE_GROQ_API_KEY || await settingsDB.getItem('groqApiKey');
     },
 
-    async chat(messages, model = 'llama3-70b-8192') {
+    async chat(messages, model = 'llama-3.3-70b-versatile') {
         const apiKey = await this.getApiKey();
         if (!apiKey) {
             throw new Error('API Key de Groq no configurada');

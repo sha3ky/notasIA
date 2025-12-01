@@ -84,7 +84,8 @@ function confirmClearData() {
     try {
       await localforage.clear();
       window.location.reload();
-    } catch (e) {
+    } catch (error) {
+      console.error(error);
       $q.notify({ type: 'negative', message: 'Error al borrar datos' });
     }
   });

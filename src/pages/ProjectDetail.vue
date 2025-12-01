@@ -1,44 +1,80 @@
 <template>
   <q-page class="q-pa-md">
-    <div v-if="project">
-      <div class="row items-center justify-between q-mb-md">
-        <div class="text-h4">{{ project.nombre }}</div>
-        <q-btn color="primary" icon="add" label="Nueva Tarea" @click="showNewTaskDialog = true" />
-      </div>
-      
-      <q-list bordered separator class="bg-white rounded-borders">
-        <q-item-label header>Tareas Pendientes</q-item-label>
-        <q-item v-for="task in pendingTasks" :key="task.id" v-ripple>
-          <q-item-section avatar>
-            <q-checkbox :model-value="task.status === 'completed'" @update:model-value="val => toggleTaskStatus(task, val)" />
-          </q-item-section>
-          <q-item-section>
-            <q-item-label>{{ task.descripcion }}</q-item-label>
-            <q-item-label caption v-if="task.metadata">
-              {{ formatMetadata(task.metadata) }}
-            </q-item-label>
-          </q-item-section>
-        </q-item>
-        <div v-if="pendingTasks.length === 0" class="q-pa-md text-grey text-center">
-          No hay tareas pendientes.
-        </div>
-
-        <q-separator />
-        
-        <q-expansion-item label="Tareas Completadas" header-class="text-grey">
-           <q-item v-for="task in completedTasks" :key="task.id" class="bg-grey-1">
-            <q-item-section avatar>
-              <q-checkbox :model-value="task.status === 'completed'" @update:model-value="val => toggleTaskStatus(task, val)" />
-            </q-item-section>
-            <q-item-section>
-              <q-item-label class="text-strike">{{ task.descripcion }}</q-item-label>
-            </q-item-section>
-          </q-item>
-        </q-expansion-item>
-      </q-list>
+    <div v-if="!project" class="text-center q-pa-lg">
+      <q-spinner-dots size="40px" color="primary" />
     </div>
-    <div v-else class="flex flex-center q-pa-xl">
-      <q-spinner size="3em" color="primary" />
+
+    <div v-else class="row q-col-gutter-md">
+      <!-- Cabecera del Proyecto -->
+      <div class="col-12">
+        <q-card class="glass-card bg-gradient-primary">
+          <q-card-section>
+            <div class="row items-center justify-between">
+              <div>
+                <div class="text-h4 text-white text-weight-light">{{ project.nombre }}</div>
+                <div class="text-subtitle1 text-grey-4">{{ project.descripcion }}</div>
+              </div>
+              <q-chip :color="project.status === 'active' ? 'green-14' : 'grey'" text-color="black" class="glass-panel">
+                {{ project.status }}
+              </q-chip>
+            </div>
+          </q-card-section>
+        </q-card>
+      </div>
+
+      <!-- Tareas Pendientes -->
+      <div class="col-12 col-md-6">
+        <q-card class="glass-card full-height">
+          <q-card-section class="row items-center justify-between">
+            <div class="text-h6 text-neon">Pendientes</div>
+            <q-btn round flat icon="add" color="cyan-13" @click="showNewTaskDialog = true" />
+          </q-card-section>
+          
+          <q-card-section>
+            <div v-if="pendingTasks.length === 0" class="text-grey-5 text-center q-pa-md">
+              ¡Todo al día! 🎉
+            </div>
+            <q-list v-else separator class="rounded-borders">
+              <q-item 
+                v-for="task in pendingTasks" 
+                :key="task.id" 
+                tag="label" 
+                v-ripple
+                class="q-py-md hover:bg-white-5 transition-all"
+              >
+                <q-item-section side top>
+                  <q-checkbox v-model="task.completed" @update:model-value="toggleTaskStatus(task, true)" color="cyan-13" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label class="text-body1">{{ task.descripcion }}</q-item-label>
+                </q-item-section>
+              </q-item>
+            </q-list>
+          </q-card-section>
+        </q-card>
+      </div>
+
+      <!-- Tareas Completadas -->
+      <div class="col-12 col-md-6">
+        <q-card class="glass-card full-height">
+          <q-card-section>
+            <div class="text-h6 text-grey-5">Completadas</div>
+          </q-card-section>
+          
+          <q-card-section>
+            <q-list separator class="rounded-borders opacity-60">
+              <q-item v-for="task in completedTasks" :key="task.id" tag="label" v-ripple class="q-py-sm">
+                <q-item-section side top>
+                  <q-checkbox v-model="task.completed" :model-value="true" @update:model-value="toggleTaskStatus(task, false)" color="grey" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label class="text-strike text-grey">{{ task.descripcion }}</q-item-label>
+                </q-item-section>
+              </q-item>
+            </q-list>
+          </q-card-section>
+        </q-card>
+      </div>
     </div>
 
     <!-- Dialogo Nueva Tarea -->
@@ -58,6 +94,31 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- Botón Flotante Mentor -->
+    <q-page-sticky position="bottom-right" :offset="[18, 80]">
+      <q-btn fab icon="psychology" color="secondary" @click="askMentor" :loading="mentorLoading">
+        <q-tooltip>Consultar a {{ currentMentor.name }}</q-tooltip>
+      </q-btn>
+    </q-page-sticky>
+
+    <!-- Dialogo Respuesta Mentor -->
+    <q-dialog v-model="showMentorDialog">
+      <q-card style="min-width: 350px; max-width: 80vw">
+        <q-card-section class="row items-center">
+          <q-avatar :icon="currentMentor.icon" color="primary" text-color="white" />
+          <div class="text-h6 q-ml-md">{{ currentMentor.name }} dice:</div>
+        </q-card-section>
+
+        <q-card-section class="q-pt-none">
+          <div style="white-space: pre-wrap;">{{ mentorResponse }}</div>
+        </q-card-section>
+
+        <q-card-actions align="right">
+          <q-btn flat label="Cerrar" v-close-popup />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -65,23 +126,29 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { useProjectStore } from 'stores/projectStore';
+import { useSettingsStore } from 'stores/settingsStore';
+import { groqService } from '../services/groqService';
+import { getMentorById } from '../constants/mentors';
 import { useQuasar } from 'quasar';
 
 const route = useRoute();
 const projectStore = useProjectStore();
+const settingsStore = useSettingsStore();
 const $q = useQuasar();
 
 const showNewTaskDialog = ref(false);
 const newTaskDescription = ref('');
+const showMentorDialog = ref(false);
+const mentorResponse = ref('');
+const mentorLoading = ref(false);
 
 const project = computed(() => projectStore.getProjectById(route.params.id));
+const currentMentor = computed(() => getMentorById(settingsStore.activeMentorId));
 
 const pendingTasks = computed(() => project?.value?.tasks.filter(t => t.status !== 'completed') || []);
 const completedTasks = computed(() => project?.value?.tasks.filter(t => t.status === 'completed') || []);
 
-function formatMetadata(metadata) {
-  return Object.entries(metadata).map(([k, v]) => `${k}: ${v}`).join(', ');
-}
+
 
 async function createTask() {
   if (!newTaskDescription.value.trim()) return;
@@ -130,7 +197,38 @@ function checkContextualSuggestions(completedTask) {
   }
 }
 
+async function askMentor() {
+  if (!project.value) return;
+  
+  mentorLoading.value = true;
+  try {
+    const context = `
+      Proyecto: ${project.value.nombre}
+      Estado: ${project.value.status}
+      Tareas pendientes:
+      ${pendingTasks.value.map(t => '- ' + t.descripcion).join('\n')}
+      Tareas completadas:
+      ${completedTasks.value.map(t => '- ' + t.descripcion).join('\n')}
+    `;
+
+    const messages = [
+      { role: 'system', content: currentMentor.value.systemPrompt },
+      { role: 'user', content: `Analiza este proyecto y dame consejos breves y accionables:\n${context}` }
+    ];
+
+    const response = await groqService.chat(messages);
+    mentorResponse.value = response.content;
+    showMentorDialog.value = true;
+  } catch (e) {
+    console.error(e);
+    $q.notify({ type: 'negative', message: 'Error al consultar al mentor' });
+  } finally {
+    mentorLoading.value = false;
+  }
+}
+
 onMounted(async () => {
+  await settingsStore.loadSettings();
   if (projectStore.projects.length === 0) {
     await projectStore.loadProjects();
   }

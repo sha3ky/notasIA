@@ -69,7 +69,20 @@ watch(() => props.initialText, async (val) => {
   }
 });
 
+const debounceTimer = ref(null);
+
+watch(() => editableText.value, (newVal) => {
+  if (newVal === props.initialText) return; // Evitar doble proceso al inicio
+  
+  if (debounceTimer.value) clearTimeout(debounceTimer.value);
+  
+  debounceTimer.value = setTimeout(() => {
+    processText(newVal);
+  }, 1000); // Esperar 1s después de escribir
+});
+
 async function processText(text) {
+  if (!text.trim()) return;
   loading.value = true;
   try {
     interpretation.value = await intentService.processText(text);

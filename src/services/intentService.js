@@ -2,79 +2,110 @@ import { groqService } from './groqService';
 
 export const intentService = {
     async processText(text) {
-        // Intentar usar Groq primero si hay API Key
+        console.log('[Voice] Texto capturado:', text);
+
         try {
             const apiKey = await groqService.getApiKey();
+
             if (apiKey) {
-                return await this.processWithGroq(text);
+                try {
+                    const today = new Date().toISOString().split('T')[0];
+                    const systemPrompt = `
+                    Current Date: ${today}
+                    JSON output only.
+                    Intents: 
+                    - create_task: new actions, to-dos, shopping items.
+                    - query: questions about data (how much, how many, list, status).
+                    - update_task: modify existing.
+                    - delete_task: remove existing.
+                    - complete_task: mark existing task as done/completed.
+
+                    Fields:
+                    - intent: detected intent.
+                    - description: main content/query.
+                    - target_search: text to find existing task (for update/delete/complete).
+                    - date: YYYY-MM-DD or null.
+                    - cost: number or null.
+                    - tags: array of strings.
+                    
+                    Ex: "Borrar la nota de pan" -> {"intent": "delete_task", "target_search": "pan"}
+                    Ex: "Cambiar cita dentista a mañana" -> {"intent": "update_task", "target_search": "dentista", "date": "2023-10-28"}
+                    Ex: "Ya llamé al vecino" -> {"intent": "complete_task", "target_search": "vecino"}
+                    Ex: "¿Cuánto he gastado hoy?" -> {"intent": "query", "description": "Cuánto he gastado hoy"}
+                    Ex: "¿Cuántas tareas tengo?" -> {"intent": "query", "description": "Cuántas tareas tengo"}
+                    `;
+
+                    const response = await groqService.chat([
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: text }
+                    ]);
+
+                    console.log('[Intent] Respuesta Raw IA:', response.content);
+
+                    let jsonResponse;
+                    try {
+                        // Intentar limpiar bloques de código si la IA los añade
+                        const cleanContent = response.content.replace(/```json/g, '').replace(/```/g, '').trim();
+                        jsonResponse = JSON.parse(cleanContent);
+                    } catch (e) {
+                        console.warn('[Intent] Fallo al parsear JSON, usando fallback manual', e);
+                        // Fallback básico si falla el JSON
+                        return {
+                            intent: 'create_task',
+                            data: { descripcion: text },
+                            confidence: 0.5
+                        };
+                    }
+
+                    console.log('[Intent] JSON Estructurado:', jsonResponse);
+
+                    return {
+                        intent: jsonResponse.intent || 'create_task',
+                        data: {
+                            descripcion: jsonResponse.description || text,
+                            target_search: jsonResponse.target_search,
+                            deadline: jsonResponse.date,
+                            cost: jsonResponse.cost,
+                            tags: jsonResponse.tags,
+                            project_hint: jsonResponse.project_hint
+                        },
+                        confidence: 0.9
+                    };
+
+                } catch (error) {
+                    console.error('[Intent] Error en procesamiento IA:', error);
+                    // Continuar al fallback local
+                }
             }
         } catch (e) {
-            console.warn('Groq no disponible, usando fallback local', e);
+            console.warn('Error accediendo a API Key o servicio', e);
         }
 
         // Fallback: Procesamiento local básico
         return this.processLocally(text);
     },
 
-    async processWithGroq(text) {
-        const systemPrompt = `
-      Eres un asistente de productividad. Analiza el texto del usuario y extrae la intención estructurada en JSON.
-      Las intenciones posibles son: 'create_task', 'update_task', 'add_inventory', 'query'.
-      
-      Formato de respuesta JSON esperado:
-      {
-        "intent": "create_task",
-        "data": {
-          "description": "Comprar pintura",
-          "project": "Renovación Cocina", // Si se menciona o infiere
-          "metadata": { "price": 25, "place": "Leroy Merlin" }
-        },
-        "confirmation_text": "Confirmar tarea: Comprar pintura por 25€ en Leroy Merlin"
-      }
-    `;
-
-        const messages = [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: text }
-        ];
-
-        const response = await groqService.chat(messages);
-        try {
-            return JSON.parse(response.content);
-        } catch (e) {
-            console.error('Error parseando respuesta de Groq', e);
-            return { intent: 'unknown', original_text: text };
-        }
-    },
-
     processLocally(text) {
-        // Heurísticas muy básicas para demostración
         const lower = text.toLowerCase();
 
         if (lower.includes('compr') || lower.includes('gast')) {
-            // Posible gasto / inventario
             return {
-                intent: 'add_inventory',
+                intent: 'create_task', // Unificamos todo a create_task con metadatos
                 data: {
-                    description: text,
-                    price: this.extractPrice(text)
+                    descripcion: text,
+                    cost: this.extractPrice(text),
+                    tags: ['gasto']
                 },
-                confirmation_text: `Registrar compra: ${text}`
-            };
-        } else if (lower.includes('tarea') || lower.includes('tengo que')) {
-            return {
-                intent: 'create_task',
-                data: {
-                    description: text
-                },
-                confirmation_text: `Crear tarea: ${text}`
+                confidence: 0.6
             };
         }
 
         return {
-            intent: 'unknown',
-            original_text: text,
-            confirmation_text: `No entendí bien: "${text}"`
+            intent: 'create_task',
+            data: {
+                descripcion: text
+            },
+            confidence: 0.5
         };
     },
 

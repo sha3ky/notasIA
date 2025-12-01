@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { projectsDB } from '../services/db';
 import { uid } from 'quasar';
 
+
 export const useProjectStore = defineStore('projects', {
     state: () => ({
         projects: [],
@@ -57,7 +58,9 @@ export const useProjectStore = defineStore('projects', {
             const index = this.projects.findIndex(p => p.id === id);
             if (index !== -1) {
                 this.projects[index] = { ...this.projects[index], ...updates };
-                await projectsDB.setItem(id, this.projects[index]);
+                // Sanitización profunda para eliminar Proxies y referencias circulares
+                const plainObject = JSON.parse(JSON.stringify(this.projects[index]));
+                await projectsDB.setItem(id, plainObject);
             }
         },
 
@@ -81,6 +84,18 @@ export const useProjectStore = defineStore('projects', {
                 const taskIndex = project.tasks.findIndex(t => t.id === taskId);
                 if (taskIndex !== -1) {
                     project.tasks[taskIndex] = { ...project.tasks[taskIndex], ...updates };
+                    await this.updateProject(projectId, { tasks: project.tasks });
+                }
+            }
+        },
+
+        async deleteTask(projectId, taskId) {
+            const project = this.getProjectById(projectId);
+            if (project) {
+                const initialLength = project.tasks.length;
+                project.tasks = project.tasks.filter(t => t.id !== taskId);
+
+                if (project.tasks.length !== initialLength) {
                     await this.updateProject(projectId, { tasks: project.tasks });
                 }
             }

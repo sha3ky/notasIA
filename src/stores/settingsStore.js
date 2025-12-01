@@ -5,14 +5,16 @@ export const useSettingsStore = defineStore('settings', {
     state: () => ({
         groqApiKey: '',
         userName: 'Usuario',
-        theme: 'auto'
+        theme: 'auto',
+        activeMentorId: 'kiyosaki'
     }),
 
     actions: {
         async loadSettings() {
-            this.groqApiKey = (await settingsDB.getItem('groqApiKey')) || '';
+            this.groqApiKey = (await settingsDB.getItem('groqApiKey')) || this.groqApiKey;
             this.userName = (await settingsDB.getItem('userName')) || 'Usuario';
             this.theme = (await settingsDB.getItem('theme')) || 'auto';
+            this.activeMentorId = (await settingsDB.getItem('activeMentorId')) || 'kiyosaki';
         },
 
         async setGroqApiKey(key) {
@@ -28,6 +30,11 @@ export const useSettingsStore = defineStore('settings', {
         async setTheme(theme) {
             this.theme = theme;
             await settingsDB.setItem('theme', theme);
+        },
+
+        async setActiveMentor(id) {
+            this.activeMentorId = id;
+            await settingsDB.setItem('activeMentorId', id);
         }
     }
 });

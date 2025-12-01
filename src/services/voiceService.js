@@ -28,7 +28,15 @@ export const voiceService = {
         };
 
         this.recognition.onerror = (event) => {
-            if (onError) onError(event.error);
+            let message = event.error;
+            if (event.error === 'network') {
+                message = 'Error de conexión. En Chromium/Brave esto suele pasar por falta de claves API de Google. Prueba usar Chrome.';
+            } else if (event.error === 'not-allowed') {
+                message = 'Permiso de micrófono denegado.';
+            } else if (event.error === 'no-speech') {
+                message = 'No se detectó voz.';
+            }
+            if (onError) onError(message);
         };
 
         this.recognition.onend = () => {
