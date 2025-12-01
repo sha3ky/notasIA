@@ -69,6 +69,19 @@ export const useInventoryStore = defineStore('inventory', {
                     throw e;
                 }
             }
+        },
+
+        async deleteProvider(id) {
+            const index = this.providers.findIndex(p => p.id === id);
+            if (index !== -1) {
+                this.providers.splice(index, 1);
+                try {
+                    await inventoryDB.removeItem(id);
+                } catch (e) {
+                    console.error('[Inventory] Error al eliminar proveedor:', e);
+                    throw e;
+                }
+            }
         }
     }
 });

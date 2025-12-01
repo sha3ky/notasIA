@@ -18,8 +18,15 @@
       <div class="col-12 col-md-6" v-for="provider in inventoryStore.providers" :key="provider.id">
         <q-card class="glass-card full-height">
           <q-card-section>
-            <div class="text-h6 text-white">{{ provider.nombre }}</div>
-            <div class="text-subtitle2 text-grey-5">{{ provider.telefono }}</div>
+            <div class="row items-center justify-between">
+                <div>
+                    <div class="text-h6 text-white">{{ provider.nombre }}</div>
+                    <div class="text-subtitle2 text-grey-5">{{ provider.telefono }}</div>
+                </div>
+                <q-btn flat round icon="delete" color="red-4" @click="confirmDeleteProvider(provider)">
+                    <q-tooltip>Eliminar Proveedor</q-tooltip>
+                </q-btn>
+            </div>
           </q-card-section>
           
           <q-separator class="bg-white-1" />
@@ -208,6 +215,25 @@ async function deleteAllProducts(provider) {
         console.error(e);
         $q.notify({ type: 'negative', message: 'Error al vaciar lista' });
     }
+}
+
+function confirmDeleteProvider(provider) {
+    $q.dialog({
+        title: 'Eliminar Proveedor',
+        message: `¿Estás seguro de eliminar a ${provider.nombre} y todos sus productos?`,
+        cancel: true,
+        persistent: true,
+        ok: { label: 'Eliminar', color: 'red', flat: true },
+        cancel: { label: 'Cancelar', color: 'white', flat: true }
+    }).onOk(async () => {
+        try {
+            await inventoryStore.deleteProvider(provider.id);
+            $q.notify({ type: 'positive', message: 'Proveedor eliminado' });
+        } catch (e) {
+            console.error(e);
+            $q.notify({ type: 'negative', message: 'Error al eliminar proveedor' });
+        }
+    });
 }
 
 function calculateTotal(provider) {

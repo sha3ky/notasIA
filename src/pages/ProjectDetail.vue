@@ -152,6 +152,59 @@ const {
   consultMentor 
 } = useMentor();
 
+const project = computed(() => projectStore.getProjectById(route.params.id));
+const currentMentor = computed(() => getMentorById(settingsStore.activeMentorId));
+
+const pendingTasks = computed(() => project?.value?.tasks.filter(t => t.status !== 'completed') || []);
+const completedTasks = computed(() => project?.value?.tasks.filter(t => t.status === 'completed') || []);
+
+async function createTask() {
+  if (!newTaskDescription.value.trim()) return;
+  
+  try {
+    await projectStore.addTask(project.value.id, { descripcion: newTaskDescription.value });
+    showNewTaskDialog.value = false;
+    newTaskDescription.value = '';
+    $q.notify({ type: 'positive', message: 'Tarea añadida' });
+  } catch (e) {
+    console.error(e);
+    $q.notify({ type: 'negative', message: 'Error al añadir tarea' });
+  }
+}
+
+async function toggleTaskStatus(task, isCompleted) {
+  const newStatus = isCompleted ? 'completed' : 'pending';
+  await projectStore.updateTask(project.value.id, task.id, { status: newStatus });
+  
+  if (isCompleted) {
+    checkContextualSuggestions(task);
+  }
+}
+
+function checkContextualSuggestions(completedTask) {
+  // Lógica contextual simple
+  const desc = completedTask.descripcion.toLowerCase();
+  let suggestion = null;
+
+  if (desc.includes('pintar') || desc.includes('pintura')) {
+    suggestion = 'Limpiar herramientas de pintura';
+  } else if (desc.includes('comprar')) {
+    suggestion = 'Verificar presupuesto';
+  }
+
+  if (suggestion) {
+    $q.notify({
+      message: `Sugerencia: ${suggestion}`,
+      color: 'info',
+      actions: [
+        { label: 'Añadir', color: 'white', handler: () => {
+            projectStore.addTask(project.value.id, { descripcion: suggestion });
+        }}
+      ]
+    });
+  }
+}
+
 async function askMentor() {
   if (!project.value) return;
   
