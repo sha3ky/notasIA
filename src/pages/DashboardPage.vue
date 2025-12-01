@@ -70,18 +70,20 @@
       <div class="row items-center justify-around q-col-gutter-md q-pa-sm">
         
         <!-- Switch Modo -->
-        <div class="col-auto">
-           <q-btn-toggle
-            v-model="inputMode"
-            push
-            glossy
-            toggle-color="primary"
-            :options="[
-              { icon: 'mic', value: 'voice' },
-              { icon: 'keyboard', value: 'text' }
-            ]"
-          />
-        </div>
+       <div class="col-auto q-mr-md">
+        <q-btn-toggle
+          v-model="inputMode"
+          push
+          glossy
+          spread 
+          toggle-color="primary"
+          :options="[
+            { icon: 'mic', value: 'voice' },
+            { icon: 'keyboard', value: 'text' }
+          ]"
+          style="gap: 25px;" 
+        />
+      </div>
 
         <!-- Input Voz -->
         <div class="col-auto" v-if="inputMode === 'voice'">
