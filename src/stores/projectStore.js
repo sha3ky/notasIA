@@ -99,6 +99,14 @@ export const useProjectStore = defineStore('projects', {
                     await this.updateProject(projectId, { tasks: project.tasks });
                 }
             }
+        },
+
+        async deleteProject(id) {
+            const index = this.projects.findIndex(p => p.id === id);
+            if (index !== -1) {
+                this.projects.splice(index, 1);
+                await projectsDB.removeItem(id);
+            }
         }
     }
 });

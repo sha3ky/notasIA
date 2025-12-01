@@ -2,7 +2,7 @@ import { groqService } from './groqService';
 
 export const intentService = {
     async processText(text) {
-        console.log('[Voice] Texto capturado:', text);
+        // console.log('[Voice] Texto capturado:', text);
 
         try {
             const apiKey = await groqService.getApiKey();
@@ -40,7 +40,7 @@ export const intentService = {
                         { role: 'user', content: text }
                     ]);
 
-                    console.log('[Intent] Respuesta Raw IA:', response.content);
+                    // console.log('[Intent] Respuesta Raw IA:', response.content);
 
                     let jsonResponse;
                     try {
@@ -57,7 +57,7 @@ export const intentService = {
                         };
                     }
 
-                    console.log('[Intent] JSON Estructurado:', jsonResponse);
+                    // console.log('[Intent] JSON Estructurado:', jsonResponse);
 
                     return {
                         intent: jsonResponse.intent || 'create_task',

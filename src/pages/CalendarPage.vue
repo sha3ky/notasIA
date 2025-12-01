@@ -31,19 +31,62 @@
         </div>
 
         <!-- Tasks for this day -->
-        <div class="tasks-container">
+        <!-- Tasks for this day -->
+        <div class="tasks-container" @click.stop="openDayDetail(date.date)">
             <div 
-                v-for="task in getTasksForDate(date.date)" 
-                :key="task.id"
+                v-for="item in getTasksForDate(date.date).slice(0, 3)" 
+                :key="item.id"
                 class="task-chip q-mb-xs"
-                :class="task.status === 'completed' ? 'bg-green-9' : 'bg-cyan-9'"
-                @click="openTaskDetail(task)"
+                :class="item.status === 'completed' ? 'bg-green-9' : (item.type === 'project' ? 'bg-purple-9' : 'bg-cyan-9')"
+                @click.stop="openTaskDetail(item)"
             >
-                {{ task.descripcion }}
+                {{ item.displayName }} {{ item.status === 'completed' ? '*' : '' }}
+            </div>
+            
+            <!-- Indicador de más items -->
+            <div v-if="getTasksForDate(date.date).length > 3" class="text-caption text-grey-5 text-center" style="font-size: 0.7em">
+                +{{ getTasksForDate(date.date).length - 3 }} más
             </div>
         </div>
       </div>
     </div>
+
+    <!-- Dialogo Detalle Día -->
+    <q-dialog v-model="showDayDialog">
+      <q-card class="glass-card" style="min-width: 350px">
+        <q-card-section>
+          <div class="text-h6 text-white">Tareas del {{ selectedDateStr }}</div>
+        </q-card-section>
+
+        <q-card-section class="q-pt-none">
+          <q-list separator>
+            <q-item 
+                v-for="item in selectedDayItems" 
+                :key="item.id" 
+                clickable 
+                v-ripple
+                @click="openTaskDetail(item)"
+            >
+                <q-item-section>
+                    <q-item-label :class="item.status === 'completed' ? 'text-green-4' : 'text-white'">
+                        {{ item.displayName }}
+                    </q-item-label>
+                    <q-item-label caption class="text-grey-5">
+                        {{ item.type === 'project' ? 'Proyecto' : 'Tarea' }}
+                    </q-item-label>
+                </q-item-section>
+                <q-item-section side>
+                    <q-icon name="chevron_right" color="grey" />
+                </q-item-section>
+            </q-item>
+          </q-list>
+        </q-card-section>
+
+        <q-card-actions align="right">
+          <q-btn flat label="Cerrar" color="white" v-close-popup />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
 
   </q-page>
 </template>
@@ -52,8 +95,10 @@
 import { ref, computed, onMounted } from 'vue';
 import { useProjectStore } from 'stores/projectStore';
 import { date } from 'quasar';
+import { useRouter } from 'vue-router';
 
 const projectStore = useProjectStore();
+const router = useRouter();
 
 const currentDate = ref(new Date());
 const weekDays = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -119,22 +164,58 @@ function goToToday() {
 
 function getTasksForDate(d) {
   const dateStr = date.formatDate(d, 'YYYY-MM-DD');
-  const tasks = [];
+  const items = [];
   
   projectStore.projects.forEach(p => {
+    // 1. Añadir Tareas
     p.tasks.forEach(t => {
       if (t.deadline === dateStr) {
-        tasks.push({ ...t, projectId: p.id });
+        items.push({ 
+            ...t, 
+            projectId: p.id,
+            type: 'task',
+            displayName: t.descripcion 
+        });
       }
     });
+
+    // 2. Añadir Proyecto (si vence hoy o se creó hoy y no tiene vencimiento)
+    const projectDate = p.deadline || (p.createdAt ? p.createdAt.split('T')[0] : null);
+    
+    if (projectDate === dateStr) {
+        items.push({
+            ...p,
+            type: 'project',
+            displayName: `[P] ${p.nombre}`, // Prefijo [P] para distinguir
+            status: p.status // 'completed' o 'in_progress'
+        });
+    }
   });
   
-  return tasks;
+  return items;
+}
+
+const showDayDialog = ref(false);
+const selectedDateStr = ref('');
+const selectedDayItems = ref([]);
+
+function openDayDetail(d) {
+    const items = getTasksForDate(d);
+    if (items.length > 0) {
+        selectedDateStr.value = date.formatDate(d, 'DD/MM/YYYY');
+        selectedDayItems.value = items;
+        showDayDialog.value = true;
+    }
 }
 
 function openTaskDetail(task) {
-    // TODO: Implementar modal de detalle o navegación
-    console.log('Task clicked:', task);
+    // Si es proyecto, ir a su detalle
+    if (task.type === 'project') {
+        router.push(`/projects/${task.id}`);
+    } else {
+        // Si es tarea, ir al proyecto padre
+        router.push(`/projects/${task.projectId}`);
+    }
 }
 
 onMounted(() => {

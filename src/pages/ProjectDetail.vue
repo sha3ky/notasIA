@@ -14,9 +14,14 @@
                 <div class="text-h4 text-white text-weight-light">{{ project.nombre }}</div>
                 <div class="text-subtitle1 text-grey-4">{{ project.descripcion }}</div>
               </div>
-              <q-chip :color="project.status === 'active' ? 'green-14' : 'grey'" text-color="black" class="glass-panel">
-                {{ project.status }}
-              </q-chip>
+              <div class="row items-center q-gutter-sm">
+                <q-chip :color="project.status === 'active' ? 'green-14' : 'grey'" text-color="black" class="glass-panel">
+                  {{ project.status }}
+                </q-chip>
+                <q-btn flat round icon="delete" color="red-4" @click="confirmDeleteProject">
+                    <q-tooltip>Eliminar Proyecto</q-tooltip>
+                </q-btn>
+              </div>
             </div>
           </q-card-section>
         </q-card>
@@ -124,107 +129,66 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useProjectStore } from 'stores/projectStore';
 import { useSettingsStore } from 'stores/settingsStore';
 import { groqService } from '../services/groqService';
 import { getMentorById } from '../constants/mentors';
 import { useQuasar } from 'quasar';
+import { useMentor } from 'src/composables/useMentor';
 
 const route = useRoute();
+const router = useRouter();
 const projectStore = useProjectStore();
 const settingsStore = useSettingsStore();
 const $q = useQuasar();
 
 const showNewTaskDialog = ref(false);
 const newTaskDescription = ref('');
-const showMentorDialog = ref(false);
-const mentorResponse = ref('');
-const mentorLoading = ref(false);
-
-const project = computed(() => projectStore.getProjectById(route.params.id));
-const currentMentor = computed(() => getMentorById(settingsStore.activeMentorId));
-
-const pendingTasks = computed(() => project?.value?.tasks.filter(t => t.status !== 'completed') || []);
-const completedTasks = computed(() => project?.value?.tasks.filter(t => t.status === 'completed') || []);
-
-
-
-async function createTask() {
-  if (!newTaskDescription.value.trim()) return;
-  
-  try {
-    await projectStore.addTask(project.value.id, { descripcion: newTaskDescription.value });
-    showNewTaskDialog.value = false;
-    newTaskDescription.value = '';
-    $q.notify({ type: 'positive', message: 'Tarea añadida' });
-  } catch (e) {
-    console.error(e);
-    $q.notify({ type: 'negative', message: 'Error al añadir tarea' });
-  }
-}
-
-async function toggleTaskStatus(task, isCompleted) {
-  const newStatus = isCompleted ? 'completed' : 'pending';
-  await projectStore.updateTask(project.value.id, task.id, { status: newStatus });
-  
-  if (isCompleted) {
-    checkContextualSuggestions(task);
-  }
-}
-
-function checkContextualSuggestions(completedTask) {
-  // Lógica contextual simple
-  const desc = completedTask.descripcion.toLowerCase();
-  let suggestion = null;
-
-  if (desc.includes('pintar') || desc.includes('pintura')) {
-    suggestion = 'Limpiar herramientas de pintura';
-  } else if (desc.includes('comprar')) {
-    suggestion = 'Verificar presupuesto';
-  }
-
-  if (suggestion) {
-    $q.notify({
-      message: `Sugerencia: ${suggestion}`,
-      color: 'info',
-      actions: [
-        { label: 'Añadir', color: 'white', handler: () => {
-            projectStore.addTask(project.value.id, { descripcion: suggestion });
-        }}
-      ]
-    });
-  }
-}
+const { 
+  showDialog: showMentorDialog, 
+  response: mentorResponse, 
+  loading: mentorLoading, 
+  consultMentor 
+} = useMentor();
 
 async function askMentor() {
   if (!project.value) return;
   
-  mentorLoading.value = true;
-  try {
-    const context = `
-      Proyecto: ${project.value.nombre}
-      Estado: ${project.value.status}
-      Tareas pendientes:
-      ${pendingTasks.value.map(t => '- ' + t.descripcion).join('\n')}
-      Tareas completadas:
-      ${completedTasks.value.map(t => '- ' + t.descripcion).join('\n')}
-    `;
+  const context = `
+    Proyecto: ${project.value.nombre}
+    Estado: ${project.value.status}
+    Tareas pendientes:
+    ${pendingTasks.value.map(t => '- ' + t.descripcion).join('\n')}
+    Tareas completadas:
+    ${completedTasks.value.map(t => '- ' + t.descripcion).join('\n')}
+  `;
 
-    const messages = [
-      { role: 'system', content: currentMentor.value.systemPrompt },
-      { role: 'user', content: `Analiza este proyecto y dame consejos breves y accionables:\n${context}` }
-    ];
+  await consultMentor(
+    currentMentor.value.systemPrompt, 
+    `Analiza este proyecto y dame consejos breves y accionables:\n${context}`
+  );
+}
 
-    const response = await groqService.chat(messages);
-    mentorResponse.value = response.content;
-    showMentorDialog.value = true;
-  } catch (e) {
-    console.error(e);
-    $q.notify({ type: 'negative', message: 'Error al consultar al mentor' });
-  } finally {
-    mentorLoading.value = false;
-  }
+function confirmDeleteProject() {
+    $q.dialog({
+        title: 'Eliminar Proyecto',
+        message: '¿Estás seguro? Se borrarán todas las tareas asociadas.',
+        cancel: true,
+        persistent: true,
+        ok: { label: 'Eliminar', color: 'red', flat: true },
+        cancel: { label: 'Cancelar', color: 'white', flat: true }
+    }).onOk(async () => {
+        try {
+            await projectStore.deleteProject(project.value.id);
+            $q.notify({ type: 'positive', message: 'Proyecto eliminado' });
+            // Volver al dashboard o lista de proyectos
+            router.push('/');
+        } catch (e) {
+            console.error(e);
+            $q.notify({ type: 'negative', message: 'Error al eliminar proyecto' });
+        }
+    });
 }
 
 onMounted(async () => {

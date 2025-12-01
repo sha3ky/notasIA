@@ -155,10 +155,18 @@ import ActionConfirmationModal from 'components/ActionConfirmationModal.vue';
 import { groqService } from 'src/services/groqService';
 import { getMentorById } from 'src/constants/mentors';
 
+import { useMentor } from 'src/composables/useMentor';
 
 const projectStore = useProjectStore();
 const settingsStore = useSettingsStore();
 const $q = useQuasar();
+
+const { 
+    showDialog: showMentorDialog, 
+    response: mentorResponseText, 
+    consultMentor,
+    openDialogWithResponse 
+} = useMentor();
 
 const showConfirmation = ref(false);
 const capturedText = ref('');
@@ -166,8 +174,8 @@ const capturedText = ref('');
 // UI States
 const inputMode = ref('voice');
 const manualInput = ref('');
-const showMentorDialog = ref(false);
-const mentorResponseText = ref('');
+// const showMentorDialog = ref(false); // Eliminado
+// const mentorResponseText = ref(''); // Eliminado
 
 
 
@@ -211,8 +219,7 @@ function speakText(text) {
 }
 
 function showMentorResponse(text) {
-    mentorResponseText.value = text;
-    showMentorDialog.value = true;
+    openDialogWithResponse(text);
     
     // Si el modo es 'voice', leer la respuesta automáticamente
     if (inputMode.value === 'voice') {
@@ -319,17 +326,15 @@ async function onActionConfirmed(interpretation) {
         Si es una tarea, sugiere cómo hacerla más eficiente.
       `;
       
-      console.log('[Mentor] Prompt enviado:', mentorPrompt);
+      // console.log('[Mentor] Prompt enviado:', mentorPrompt);
 
       try {
-        const mentorResponse = await groqService.chat([
-          { role: 'system', content: activeMentor.systemPrompt },
-          { role: 'user', content: mentorPrompt }
-        ]);
+        const responseText = await consultMentor(activeMentor.systemPrompt, mentorPrompt);
+        // console.log('[Mentor] Respuesta recibida:', responseText);
         
-        console.log('[Mentor] Respuesta recibida:', mentorResponse.content);
-
-        showMentorResponse(mentorResponse.content);
+        if (inputMode.value === 'voice') {
+            speakText(responseText);
+        }
         
       } catch (mentorError) {
         console.error('Error obteniendo consejo del mentor:', mentorError);
@@ -501,12 +506,11 @@ async function onActionConfirmed(interpretation) {
       `;
 
       try {
-        const response = await groqService.chat([
-            { role: 'system', content: 'Eres un asistente analítico que responde preguntas sobre los datos del usuario.' },
-            { role: 'user', content: queryPrompt }
-        ]);
-
-        showMentorResponse(response.content);
+        const responseText = await consultMentor('Eres un asistente analítico que responde preguntas sobre los datos del usuario.', queryPrompt);
+        
+        if (inputMode.value === 'voice') {
+            speakText(responseText);
+        }
 
       } catch (e) {
         console.error(e);
@@ -524,6 +528,5 @@ async function onActionConfirmed(interpretation) {
 
 onMounted(async () => {
   await projectStore.loadProjects();
-  console.log('[Dashboard] Proyectos cargados:', projectStore.projects);
 });
 </script>

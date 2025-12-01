@@ -12,7 +12,7 @@ export const useInventoryStore = defineStore('inventory', {
     actions: {
         async loadInventory() {
             this.loading = true;
-            console.log('[Inventory] Cargando proveedores...');
+            // console.log('[Inventory] Cargando proveedores...');
             try {
                 const keys = await inventoryDB.keys();
                 const loadedProviders = [];
@@ -21,7 +21,7 @@ export const useInventoryStore = defineStore('inventory', {
                     loadedProviders.push(provider);
                 }
                 this.providers = loadedProviders;
-                console.log(`[Inventory] ${loadedProviders.length} proveedores cargados.`);
+                // console.log(`[Inventory] ${loadedProviders.length} proveedores cargados.`);
             } catch (error) {
                 console.error('[Inventory] Error loading inventory:', error);
             } finally {
@@ -41,7 +41,7 @@ export const useInventoryStore = defineStore('inventory', {
             const rawProvider = toRaw(newProvider);
             const plainProvider = JSON.parse(JSON.stringify(rawProvider));
 
-            console.log('[Inventory] Guardando nuevo proveedor:', plainProvider);
+            // console.log('[Inventory] Guardando nuevo proveedor:', plainProvider);
 
             try {
                 await inventoryDB.setItem(plainProvider.id, plainProvider);
@@ -60,7 +60,7 @@ export const useInventoryStore = defineStore('inventory', {
                 const rawProvider = toRaw(this.providers[index]);
                 const plainProvider = JSON.parse(JSON.stringify(rawProvider));
 
-                console.log('[Inventory] Actualizando proveedor:', plainProvider);
+                // console.log('[Inventory] Actualizando proveedor:', plainProvider);
 
                 try {
                     await inventoryDB.setItem(id, plainProvider);
