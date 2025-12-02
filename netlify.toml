@@ -1,12 +1,18 @@
-# netlify.toml en la raíz del proyecto
+# netlify.toml - CONFIGURACIÓN PARA QUASAR v2+
 [build]
   command = "npm run build"
-  publish = "dist/spa"  # Quasar por defecto compila SPAs en dist/spa
+  publish = ".quasar/dist/spa"  # ¡CORREGIDO! Quasar v2 usa .quasar/
 
 [build.environment]
-  NODE_VERSION = "18"  # o la versión que uses
+  NODE_VERSION = "16.20.2"  # IMPORTANTE: Node 16 para evitar crypto.hash error
+  NPM_FLAGS = "--legacy-peer-deps"
+  CI = "false"  # Desactiva CI para builds más limpios
 
-# Redirects para SPA
+# Variables de entorno (NO pongas valores aquí, usa Netlify UI)
+# [context.production.environment]
+#   VITE_GROQ_API_KEY = "tu_clave_aqui"  # ¡NO! Esto expondría tu clave
+
+# Redirects para SPA (Single Page Application)
 [[redirects]]
   from = "/*"
   to = "/index.html"
