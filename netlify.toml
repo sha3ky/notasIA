@@ -1,7 +1,7 @@
 # netlify.toml - CONFIGURACIÓN PARA QUASAR v2+
 [build]
   command = "npm run build"
-  publish = ".quasar/dist/spa"  # ¡CORREGIDO! Quasar v2 usa .quasar/
+  publish = "dist/spa"  # Quasar v2 con Vite compila en dist/spa por defecto
 
 [build.environment]
   NODE_VERSION = "16.20.2"  # IMPORTANTE: Node 16 para evitar crypto.hash error
