@@ -1,0 +1,21 @@
+# netlify.toml en la raíz del proyecto
+[build]
+  command = "npm run build"
+  publish = "dist/spa"  # Quasar por defecto compila SPAs en dist/spa
+
+[build.environment]
+  NODE_VERSION = "18"  # o la versión que uses
+
+# Redirects para SPA
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Headers de seguridad
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
