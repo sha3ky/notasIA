@@ -208,25 +208,5 @@ export default defineConfig((/* ctx */) => {
        */
       extraScripts: [],
     },
-  },
-    extendWebpack(cfg) {
-    cfg.resolve.fallback = {
-      ...cfg.resolve.fallback,
-      crypto: false,  // Desactivar crypto nativo
-      stream: false,
-      buffer: false
-    };
-
-    // O usar polyfills si es necesario
-    cfg.plugins.push(
-      new webpack.ProvidePlugin({
-        process: 'process/browser',
-        Buffer: ['buffer', 'Buffer']
-      })
-    );
-  },
-
-  chainWebpack(chain) {
-    chain.resolve.alias.set('crypto', 'crypto-browserify');
   }
 })

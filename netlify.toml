@@ -4,7 +4,7 @@
   publish = "dist/spa"  # Quasar v2 con Vite compila en dist/spa por defecto
 
 [build.environment]
- NODE_VERSION = "18.20.4"  # Cambiado a 18 para evitar crypto.hash error
+  NODE_VERSION = "20"  # Las dependencias modernas (Vite 6, Quasar) requieren Node 20+
   NPM_FLAGS = "--legacy-peer-deps"
   CI = "false"  # Desactiva CI para builds más limpios
 
