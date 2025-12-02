@@ -132,7 +132,6 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useProjectStore } from 'stores/projectStore';
 import { useSettingsStore } from 'stores/settingsStore';
-import { groqService } from '../services/groqService';
 import { getMentorById } from '../constants/mentors';
 import { useQuasar } from 'quasar';
 import { useMentor } from 'src/composables/useMentor';
@@ -227,7 +226,6 @@ function confirmDeleteProject() {
     $q.dialog({
         title: 'Eliminar Proyecto',
         message: '¿Estás seguro? Se borrarán todas las tareas asociadas.',
-        cancel: true,
         persistent: true,
         ok: { label: 'Eliminar', color: 'red', flat: true },
         cancel: { label: 'Cancelar', color: 'white', flat: true }

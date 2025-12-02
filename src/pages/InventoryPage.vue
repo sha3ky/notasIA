@@ -221,7 +221,6 @@ function confirmDeleteProvider(provider) {
     $q.dialog({
         title: 'Eliminar Proveedor',
         message: `¿Estás seguro de eliminar a ${provider.nombre} y todos sus productos?`,
-        cancel: true,
         persistent: true,
         ok: { label: 'Eliminar', color: 'red', flat: true },
         cancel: { label: 'Cancelar', color: 'white', flat: true }
