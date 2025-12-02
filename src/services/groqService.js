@@ -1,28 +1,37 @@
-import { settingsDB } from './db';
+
 
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
 export const groqService = {
     async getApiKey() {
+        // 1. Prioridad ABSOLUTA a variable de entorno (según solicitud usuario)
         const envKey = import.meta.env.VITE_GROQ_API_KEY;
-        if (envKey) {
-            // console.log('[GroqService] Usando API Key desde .env:', envKey.substring(0, 4) + '...');
+        const isEnvKeyValid = envKey && /^gsk_/.test(envKey.trim());
+
+        if (isEnvKeyValid) {
             return envKey;
         }
 
+        // 2. DB Key deshabilitada temporalmente por solicitud
+        /*
         const dbKey = await settingsDB.getItem('groqApiKey');
-        if (dbKey) {
-            // console.log('[GroqService] Usando API Key desde DB:', dbKey.substring(0, 4) + '...');
+        const isDbKeyValid = dbKey && /^(gsk_|GSK_)/.test(dbKey.trim());
+        console.log('[GroqService] DB Key found:', !!dbKey, isDbKeyValid ? `Prefix: ${dbKey.trim().substring(0,4)}` : 'Invalid Format');
+        
+        if (isDbKeyValid) {
+            console.log('[GroqService] Using DB Key');
             return dbKey;
         }
+        */
 
+        console.warn('[GroqService] No valid API Key found in .env');
         return null;
     },
 
     async chat(messages, model = 'llama-3.3-70b-versatile') {
         const apiKey = await this.getApiKey();
+
         if (!apiKey) {
-            console.error('[GroqService] No se encontró ninguna API Key.');
             throw new Error('API Key de Groq no configurada');
         }
 
@@ -40,8 +49,10 @@ export const groqService = {
         });
 
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(`Error Groq API: ${errorData.error?.message || response.statusText}`);
+            const errorData = await response.json().catch(() => ({}));
+            const error = new Error(`Error Groq API: ${errorData.error?.message || response.statusText}`);
+            error.status = response.status;
+            throw error;
         }
 
         const data = await response.json();

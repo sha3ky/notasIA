@@ -2,7 +2,7 @@ import { groqService } from './groqService';
 
 export const intentService = {
     async processText(text) {
-        // console.log('[Voice] Texto capturado:', text);
+        console.log('[Voice] 🗣️ Pregunta/Texto Usuario:', text);
 
         try {
             const apiKey = await groqService.getApiKey();
@@ -15,7 +15,7 @@ export const intentService = {
                     JSON output only.
                     Intents: 
                     - create_task: new actions, to-dos, shopping items.
-                    - query: questions about data (how much, how many, list, status).
+                    - query: questions about data (how much, how many, list, status, "show me", "tell me").
                     - update_task: modify existing.
                     - delete_task: remove existing.
                     - complete_task: mark existing task as done/completed.
@@ -33,6 +33,8 @@ export const intentService = {
                     Ex: "Ya llamé al vecino" -> {"intent": "complete_task", "target_search": "vecino"}
                     Ex: "¿Cuánto he gastado hoy?" -> {"intent": "query", "description": "Cuánto he gastado hoy"}
                     Ex: "¿Cuántas tareas tengo?" -> {"intent": "query", "description": "Cuántas tareas tengo"}
+                    Ex: "Dime las tareas pendientes" -> {"intent": "query", "description": "Dime las tareas pendientes"}
+                    Ex: "Qué tenemos para mañana" -> {"intent": "query", "description": "Qué tenemos para mañana"}
                     `;
 
                     const response = await groqService.chat([
@@ -57,7 +59,7 @@ export const intentService = {
                         };
                     }
 
-                    // console.log('[Intent] JSON Estructurado:', jsonResponse);
+                    console.log('[Intent] 🤖 Respuesta IA (JSON):', jsonResponse);
 
                     return {
                         intent: jsonResponse.intent || 'create_task',
@@ -87,6 +89,23 @@ export const intentService = {
 
     processLocally(text) {
         const lower = text.toLowerCase();
+
+        // Detectar Consultas (Query)
+        if (lower.includes('que tenemos') || lower.includes('qué tenemos') ||
+            lower.includes('que hay') || lower.includes('qué hay') ||
+            lower.includes('cuanto') || lower.includes('cuánto') ||
+            lower.includes('lista') || lower.includes('ver') ||
+            lower.includes('revisar') || lower.includes('consultar') ||
+            lower.includes('dime') || lower.includes('decirme') ||
+            lower.includes('cuales') || lower.includes('cuáles')) {
+            return {
+                intent: 'query',
+                data: {
+                    descripcion: text
+                },
+                confidence: 0.7
+            };
+        }
 
         if (lower.includes('compr') || lower.includes('gast')) {
             return {

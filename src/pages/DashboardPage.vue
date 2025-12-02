@@ -152,7 +152,6 @@ import { useSettingsStore } from 'stores/settingsStore';
 import { useQuasar } from 'quasar';
 import VoiceInput from 'components/VoiceInput.vue';
 import ActionConfirmationModal from 'components/ActionConfirmationModal.vue';
-import { groqService } from 'src/services/groqService';
 import { getMentorById } from 'src/constants/mentors';
 
 import { useMentor } from 'src/composables/useMentor';
@@ -164,8 +163,7 @@ const $q = useQuasar();
 const { 
     showDialog: showMentorDialog, 
     response: mentorResponseText, 
-    consultMentor,
-    openDialogWithResponse 
+    consultMentor
 } = useMentor();
 
 const showConfirmation = ref(false);
@@ -218,16 +216,52 @@ function speakText(text) {
   window.speechSynthesis.speak(utterance);
 }
 
-function showMentorResponse(text) {
-    openDialogWithResponse(text);
-    
-    // Si el modo es 'voice', leer la respuesta automáticamente
-    if (inputMode.value === 'voice') {
-        speakText(text);
-    }
-}
-
 const pendingAction = ref(null);
+const lastQueryResults = ref([]);
+
+function resolveTaskFromContext(searchTerm) {
+    // Si no hay contexto previo, intentamos cargarlo con las tareas actuales (Fallback implícito)
+    if (!lastQueryResults.value.length) {
+        const allPending = [];
+        const projectStore = useProjectStore(); // Necesitamos acceso al store aquí si no está disponible globalmente en este scope
+        projectStore.projects.forEach(p => {
+             p.tasks.filter(t => t.status !== 'completed').forEach(t => {
+                 allPending.push({
+                    id: t.id,
+                    projectId: p.id,
+                    desc: t.descripcion,
+                    status: t.status,
+                    cost: t.cost || 0,
+                    date: t.createdAt
+                 });
+             });
+        });
+        // Ordenamos por fecha (o como se muestren en la UI) para consistencia
+        // Asumimos orden de inserción o ID por ahora
+        lastQueryResults.value = allPending.slice(0, 10);
+        console.log('[Dashboard] Contexto vacío. Rellenado con tareas actuales:', lastQueryResults.value);
+    }
+
+    if (!lastQueryResults.value.length || !searchTerm) return null;
+    const lower = searchTerm.toLowerCase();
+    let index = -1;
+    
+    if (lower.includes('primera') || lower === '1' || lower === '1º' || lower === 'uno') index = 0;
+    else if (lower.includes('segunda') || lower === '2' || lower === '2º' || lower === 'dos') index = 1;
+    else if (lower.includes('tercera') || lower === '3' || lower === '3º' || lower === 'tres') index = 2;
+    else if (lower.includes('cuarta') || lower === '4' || lower === '4º' || lower === 'cuatro') index = 3;
+    else if (lower.includes('quinta') || lower === '5' || lower === '5º' || lower === 'cinco') index = 4;
+    else if (lower.includes('sexta') || lower === '6' || lower === '6º' || lower === 'seis') index = 5;
+    else if (lower.includes('septima') || lower.includes('séptima') || lower === '7' || lower === '7º' || lower === 'siete') index = 6;
+    else if (lower.includes('octava') || lower === '8' || lower === '8º' || lower === 'ocho') index = 7;
+    else if (lower.includes('novena') || lower === '9' || lower === '9º' || lower === 'nueve') index = 8;
+    else if (lower.includes('decima') || lower.includes('décima') || lower === '10' || lower === '10º' || lower === 'diez') index = 9;
+    
+    if (index >= 0 && index < lastQueryResults.value.length) {
+        return lastQueryResults.value[index];
+    }
+    return null;
+}
 
 async function onActionConfirmed(interpretation) {
   if (!interpretation) return;
@@ -353,19 +387,54 @@ async function onActionConfirmed(interpretation) {
          return;
       }
 
+      // 1. Intentar resolver por contexto (ordinales)
+      const contextTask = resolveTaskFromContext(searchTerm);
+      
+      if (contextTask) {
+          if (interpretation.intent === 'delete_task') {
+              await projectStore.deleteTask(contextTask.projectId, contextTask.id);
+              $q.notify({ type: 'positive', message: 'Tarea eliminada (por contexto).', icon: 'delete' });
+              speakText(`Hecho. He borrado: ${contextTask.desc}`);
+              return;
+          } else {
+              // Update por contexto
+              const updates = {};
+              if (interpretation.data.descripcion && interpretation.data.descripcion !== searchTerm) updates.descripcion = interpretation.data.descripcion;
+              if (interpretation.data.cost) updates.cost = interpretation.data.cost;
+              if (interpretation.data.deadline) updates.deadline = interpretation.data.deadline;
+              
+              await projectStore.updateTask(contextTask.projectId, contextTask.id, updates);
+              $q.notify({ type: 'positive', message: 'Tarea actualizada (por contexto).', icon: 'edit' });
+              speakText(`Actualizada: ${contextTask.desc}`);
+              return;
+          }
+      }
+
       if (interpretation.intent === 'delete_task') {
         let deletedCount = 0;
+        const lowerSearch = searchTerm.toLowerCase();
+        const isDeleteAll = lowerSearch.includes('todas') || lowerSearch.includes('todo') || lowerSearch.includes('all');
+        const onlyPending = lowerSearch.includes('pendientes') || lowerSearch.includes('pending');
+        const onlyCompleted = lowerSearch.includes('completadas') || lowerSearch.includes('completed') || lowerSearch.includes('hechas') || lowerSearch.includes('listas');
         
         // Iterar sobre todos los proyectos y buscar coincidencias
         for (const p of projectStore.projects) {
             let tasksToDelete = [];
             
-            // Soporte para "Borrar todo"
-            if (searchTerm.toLowerCase() === 'all' || searchTerm.toLowerCase() === 'todo') {
-                tasksToDelete = [...p.tasks]; // Copia de todas las tareas
+            if (isDeleteAll || onlyCompleted) {
+                if (onlyPending) {
+                    // Borrar todas las pendientes
+                    tasksToDelete = p.tasks.filter(t => t.status !== 'completed');
+                } else if (onlyCompleted) {
+                    // Borrar todas las completadas
+                    tasksToDelete = p.tasks.filter(t => t.status === 'completed');
+                } else {
+                    // Borrar ABSOLUTAMENTE todas
+                    tasksToDelete = [...p.tasks];
+                }
             } else {
                 // Búsqueda normal por coincidencia
-                tasksToDelete = p.tasks.filter(t => t.descripcion.toLowerCase().includes(searchTerm.toLowerCase()));
+                tasksToDelete = p.tasks.filter(t => t.descripcion.toLowerCase().includes(lowerSearch));
             }
             
             for (const task of tasksToDelete) {
@@ -433,16 +502,43 @@ async function onActionConfirmed(interpretation) {
     } else if (interpretation.intent === 'complete_task') {
         // Lógica de Completar Tarea
         const searchTerm = interpretation.data.target_search || interpretation.data.descripcion;
+        console.log('[Dashboard] Intentando completar tarea. Búsqueda:', searchTerm);
         
+        // 1. Intentar resolver por contexto (ordinales)
+        const contextTask = resolveTaskFromContext(searchTerm);
+        if (contextTask) {
+             await projectStore.updateTask(contextTask.projectId, contextTask.id, { status: 'completed' });
+             $q.notify({ type: 'positive', message: 'Tarea completada (por contexto).', icon: 'check_circle' });
+             speakText(`Genial. He marcado como completada: ${contextTask.desc}`);
+             return;
+        }
+
         let allMatches = [];
+        const stopWords = ['el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas', 'de', 'del', 'al', 'a', 'y', 'o', 'en', 'con', 'por', 'para', 'que', 'qué', 'he', 'ya', 'mi', 'mis', 'tu', 'tus'];
+        const searchWords = searchTerm.toLowerCase()
+            .split(' ')
+            .filter(w => w.length > 1 && !stopWords.includes(w));
+            
+        console.log('[Dashboard] Palabras clave depuradas:', searchWords);
+
         for (const p of projectStore.projects) {
             // Buscar solo tareas pendientes
-            const matchesInProject = p.tasks.filter(t => 
-                t.status !== 'completed' && 
-                t.descripcion.toLowerCase().includes(searchTerm.toLowerCase())
-            );
+            const matchesInProject = p.tasks.filter(t => {
+                if (t.status === 'completed') return false;
+                const descLower = t.descripcion.toLowerCase();
+                
+                // 1. Coincidencia exacta (substring)
+                if (descLower.includes(searchTerm.toLowerCase())) return true;
+
+                // 2. Coincidencia por palabras clave (Fuzzy simple)
+                // Si todas las palabras significativas de la búsqueda están en la descripción
+                const allWordsFound = searchWords.every(word => descLower.includes(word));
+                return allWordsFound;
+            });
             matchesInProject.forEach(m => allMatches.push({ task: m, projectId: p.id }));
         }
+        
+        console.log('[Dashboard] Coincidencias encontradas:', allMatches.length, allMatches);
 
         if (allMatches.length === 0) {
              $q.notify({ type: 'warning', message: `No encontré ninguna tarea pendiente sobre "${searchTerm}".` });
@@ -474,11 +570,13 @@ async function onActionConfirmed(interpretation) {
       // 1. Recopilar Contexto de Datos (SOLO PENDIENTES para ahorrar tokens)
       const allTasks = [];
       projectStore.projects.forEach(p => {
-        // Filtramos tareas completadas para no gastar tokens en historial antiguo
-        const activeTasks = p.tasks.filter(t => t.status !== 'completed');
+        // Incluimos TODAS las tareas (pendientes y completadas) para que la IA sepa lo gastado
+        const projectTasks = p.tasks;
         
-        activeTasks.forEach(t => {
+        projectTasks.forEach(t => {
             allTasks.push({
+                id: t.id,
+                projectId: p.id,
                 desc: t.descripcion,
                 status: t.status,
                 cost: t.cost || 0,
@@ -488,7 +586,9 @@ async function onActionConfirmed(interpretation) {
         });
       });
 
-      const contextSummary = JSON.stringify(allTasks);
+      // Guardar contexto para futuras referencias (ej: "borra la primera")
+      lastQueryResults.value = allTasks.slice(0, 10);
+      const contextSummary = JSON.stringify(allTasks.map(t => ({ desc: t.desc, status: t.status, cost: t.cost, date: t.date })));
 
       // 2. Preguntar a la IA con el contexto
       $q.notify({ type: 'ongoing', message: 'Consultando tus datos...', timeout: 1500 });
@@ -501,12 +601,15 @@ async function onActionConfirmed(interpretation) {
         Pregunta del usuario: "${interpretation.data.descripcion}"
         
         Instrucción: Responde a la pregunta basándote ESTRICTAMENTE en los datos proporcionados. 
-        Si te preguntan por gastos, suma los costos. Si preguntan por tareas, cuéntalas.
-        Responde con la personalidad de ${activeMentor.name}. Sé breve.
+        - Si preguntan "¿Qué tareas...?" o "Dime las tareas...", LISTA las tareas resumidamente (máximo 10).
+        - Si preguntan "¿Cuántas...?", entonces solo da el número total.
+        - Si preguntan por gastos, suma los costos.
+        Responde con la personalidad de ${activeMentor.name}. Sé breve pero útil.
       `;
 
       try {
         const responseText = await consultMentor('Eres un asistente analítico que responde preguntas sobre los datos del usuario.', queryPrompt);
+        console.log('[Mentor] 💡 Respuesta Final:', responseText);
         
         if (inputMode.value === 'voice') {
             speakText(responseText);

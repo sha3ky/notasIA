@@ -51,7 +51,12 @@
                   <q-checkbox v-model="task.completed" @update:model-value="toggleTaskStatus(task, true)" color="cyan-13" />
                 </q-item-section>
                 <q-item-section>
-                  <q-item-label class="text-body1">{{ task.descripcion }}</q-item-label>
+                  <q-item-label class="text-body1">
+                    {{ task.descripcion }}
+                    <q-badge v-if="task.cost" color="orange-9" text-color="white" class="q-ml-sm">
+                      {{ task.cost }} €
+                    </q-badge>
+                  </q-item-label>
                 </q-item-section>
               </q-item>
             </q-list>
@@ -73,7 +78,10 @@
                   <q-checkbox v-model="task.completed" :model-value="true" @update:model-value="toggleTaskStatus(task, false)" color="grey" />
                 </q-item-section>
                 <q-item-section>
-                  <q-item-label class="text-strike text-grey">{{ task.descripcion }}</q-item-label>
+                  <q-item-label class="text-strike text-grey">
+                    {{ task.descripcion }}
+                    <span v-if="task.cost" class="text-caption text-orange-3 q-ml-sm">({{ task.cost }} €)</span>
+                  </q-item-label>
                 </q-item-section>
               </q-item>
             </q-list>
