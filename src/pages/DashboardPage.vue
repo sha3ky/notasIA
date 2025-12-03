@@ -237,6 +237,9 @@ function resolveTaskFromContext(searchTerm) {
     else if (lower.includes('octava') || lower === '8' || lower === '8º' || lower === 'ocho') index = 7;
     else if (lower.includes('novena') || lower === '9' || lower === '9º' || lower === 'nueve') index = 8;
     else if (lower.includes('decima') || lower.includes('décima') || lower === '10' || lower === '10º' || lower === 'diez') index = 9;
+    else if (lower.includes('ultimo') || lower.includes('último') || lower.includes('ultima') || lower.includes('última')) {
+        index = lastQueryResults.value.length - 1;
+    }
     
     if (index >= 0 && index < lastQueryResults.value.length) {
         return lastQueryResults.value[index];
