@@ -6,7 +6,10 @@ export const useSettingsStore = defineStore('settings', {
         groqApiKey: '',
         userName: 'Usuario',
         theme: 'auto',
-        activeMentorId: 'kiyosaki'
+        activeMentorId: 'kiyosaki',
+        voiceURI: null,
+        voiceRate: 1.0,
+        voicePitch: 1.0
     }),
 
     actions: {
@@ -15,6 +18,11 @@ export const useSettingsStore = defineStore('settings', {
             this.userName = (await settingsDB.getItem('userName')) || 'Usuario';
             this.theme = (await settingsDB.getItem('theme')) || 'auto';
             this.activeMentorId = (await settingsDB.getItem('activeMentorId')) || 'kiyosaki';
+
+            // Voice Settings
+            this.voiceURI = (await settingsDB.getItem('voiceURI')) || null;
+            this.voiceRate = (await settingsDB.getItem('voiceRate')) || 1.0;
+            this.voicePitch = (await settingsDB.getItem('voicePitch')) || 1.0;
         },
 
         async setGroqApiKey(key) {
@@ -35,6 +43,15 @@ export const useSettingsStore = defineStore('settings', {
         async setActiveMentor(id) {
             this.activeMentorId = id;
             await settingsDB.setItem('activeMentorId', id);
+        },
+
+        async setVoiceSettings(uri, rate, pitch) {
+            this.voiceURI = uri;
+            this.voiceRate = rate;
+            this.voicePitch = pitch;
+            await settingsDB.setItem('voiceURI', uri);
+            await settingsDB.setItem('voiceRate', rate);
+            await settingsDB.setItem('voicePitch', pitch);
         }
     }
 });

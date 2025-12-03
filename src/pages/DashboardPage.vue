@@ -65,6 +65,9 @@
       </div>
     </div>
 
+    <!-- Spacer para evitar que el footer tape el contenido -->
+    <div style="height: 120px; width: 100%;"></div>
+
     <!-- Footer de Entrada (Voz/Texto) -->
     <div class="fixed-bottom q-mb-lg glass-panel" style="width: 90%; max-width: 600px; left: 50%; transform: translateX(-50%); border-radius: 24px; border: 1px solid rgba(255,255,255,0.1); z-index: 2000;">
       <div class="row items-center justify-around q-col-gutter-md q-pa-sm">
@@ -154,12 +157,13 @@ import VoiceInput from 'components/VoiceInput.vue';
 import ActionConfirmationModal from 'components/ActionConfirmationModal.vue';
 import { getMentorById } from 'src/constants/mentors';
 
+import { useSpeech } from 'src/composables/useSpeech';
 import { useMentor } from 'src/composables/useMentor';
 
 const projectStore = useProjectStore();
 const settingsStore = useSettingsStore();
 const $q = useQuasar();
-
+const { speak: speakText } = useSpeech(); 
 const { 
     showDialog: showMentorDialog, 
     response: mentorResponseText, 
@@ -172,10 +176,6 @@ const capturedText = ref('');
 // UI States
 const inputMode = ref('voice');
 const manualInput = ref('');
-// const showMentorDialog = ref(false); // Eliminado
-// const mentorResponseText = ref(''); // Eliminado
-
-
 
 function formatDate(dateString) {
   if (!dateString) return '';
@@ -192,28 +192,8 @@ async function sendManualInput() {
   
   const text = manualInput.value;
   manualInput.value = ''; // Limpiar input
-  
-  // Pasamos el texto directamente al modal para que él se encargue del flujo normal
   capturedText.value = text;
   showConfirmation.value = true;
-}
-
-function speakText(text) {
-  if (!window.speechSynthesis) return;
-  
-  // Cancelar lecturas anteriores
-  window.speechSynthesis.cancel();
-
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = 'es-ES';
-  utterance.rate = 1.0;
-  
-  // Intentar seleccionar una voz en español
-  const voices = window.speechSynthesis.getVoices();
-  const spanishVoice = voices.find(v => v.lang.includes('es'));
-  if (spanishVoice) utterance.voice = spanishVoice;
-
-  window.speechSynthesis.speak(utterance);
 }
 
 const pendingAction = ref(null);
@@ -235,6 +215,7 @@ function resolveTaskFromContext(searchTerm) {
                     date: t.createdAt
                  });
              });
+             
         });
         // Ordenamos por fecha (o como se muestren en la UI) para consistencia
         // Asumimos orden de inserción o ID por ahora
